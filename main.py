@@ -9,6 +9,8 @@ path = "training"
 images = list()
 person_names = list()
 person_list = os.listdir(path)
+attendance_dict = {}
+ATTENDANCE_TIME = 40 * 60
 
 for cu_image in person_list:
     if cu_image.endswith((".jpg", ".jpeg", ".png")):
@@ -23,6 +25,7 @@ for cu_image in person_list:
 
 print(person_list)
 print(person_names)
+
 
 def face_encodings(_images):
     encode_list = []
@@ -56,9 +59,6 @@ print("Encodings completed.")
 cap = cv2.VideoCapture(0)
 correct_recognitions = 0
 total_recognitions = 0
-face_detected = False
-countdown_started = False
-start_time = 0
 
 while True:
     ret, frame = cap.read()
@@ -95,20 +95,28 @@ while True:
                 2,
             )
 
-            if not face_detected:
-                face_detected = True
-                countdown_started = True
-                start_time = time.time()
+            if name not in attendance_dict:
+                attendance_dict[name] = {
+                    "start_time": time.time(),
+                    "total_time": 0,
+                    "is_present": True,
+                }
+            else:
+                if not attendance_dict[name]["is_present"]:
+                    attendance_dict[name]["start_time"] = time.time()
+                    attendance_dict[name]["is_present"] = True
 
-            if countdown_started and time.time() - start_time >= 10:
+            attendance_dict[name]["total_time"] = (
+                time.time() - attendance_dict[name]["start_time"]
+            )
+
+            if attendance_dict[name]["total_time"] >= ATTENDANCE_TIME:
                 attendance(name)
-                countdown_started = False
-                face_detected = False
-
+                attendance_dict[name]["total_time"] = 0
         else:
-            if face_detected:
-                face_detected = False
-                countdown_started = False
+            for name in attendance_dict:
+                if attendance_dict[name]["is_present"]:
+                    attendance_dict[name]["is_present"] = False
 
     cv2.imshow("Automated Attendance | Camera", frame)
 
