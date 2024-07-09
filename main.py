@@ -4,13 +4,16 @@ import face_recognition
 import os
 from datetime import datetime
 import time
+import pandas as pd
+import matplotlib.pyplot as plt
 
 path = "training"
-images = list()
-person_names = list()
+images = []
+person_names = []
 person_list = os.listdir(path)
 attendance_dict = {}
-ATTENDANCE_TIME = 40 * 60
+ATTENDANCE_TIME = 10
+results = []
 
 for cu_image in person_list:
     if cu_image.endswith((".jpg", ".jpeg", ".png")):
@@ -23,10 +26,6 @@ for cu_image in person_list:
     else:
         print(f"Skipping non-image file: '{cu_image}'")
 
-print(person_list)
-print(person_names)
-
-
 def face_encodings(_images):
     encode_list = []
     for image in _images:
@@ -37,7 +36,6 @@ def face_encodings(_images):
         else:
             print("Error: No face found in the image")
     return encode_list
-
 
 def attendance(_name):
     if not os.path.exists("Attendance.csv"):
@@ -50,7 +48,6 @@ def attendance(_name):
         date_string = time_now.strftime("%d/%m/%Y")
         f.write(f"{_name},{time_string},{date_string}\n")
 
-
 THRESHOLD = 0.5
 
 encode_list_known = face_encodings(images)
@@ -60,6 +57,7 @@ cap = cv2.VideoCapture(0)
 correct_recognitions = 0
 total_recognitions = 0
 
+start_time = time.time()
 while True:
     ret, frame = cap.read()
     faces = cv2.resize(frame, (0, 0), None, 0.25, 0.25)
@@ -118,6 +116,9 @@ while True:
                 if attendance_dict[name]["is_present"]:
                     attendance_dict[name]["is_present"] = False
 
+    elapsed_time = time.time() - start_time
+    results.append((elapsed_time, correct_recognitions, total_recognitions))
+    
     cv2.imshow("Automated Attendance | Camera", frame)
 
     keys = cv2.waitKey(1) & 0xFF
@@ -126,6 +127,10 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+
+# Save results to CSV
+df = pd.DataFrame(results, columns=['Elapsed Time', 'Correct Recognitions', 'Total Recognitions'])
+df.to_csv('recognition_results.csv', index=False)
 
 accuracy = correct_recognitions / total_recognitions * 100
 print(f"Accuracy: {accuracy}%")
